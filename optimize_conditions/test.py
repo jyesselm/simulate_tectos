@@ -28,21 +28,22 @@ def reformat_data_file():
 
 def run_new():
     f = open("summary.txt", "w")
-    df = pd.read_table("sequences_tiled_length10.txt")
+    #df = pd.read_table("sequences_tiled_length10.txt")
+    df = pd.read_table("flowWC.150607_150605.combined.results.sequence.length10.dat",
+                          names="id,sequence,dG,eminus,eplus".split(","))
     f.write("sequence dG dG_lb dG_ub cutoff_count\n")
     for i, row in df.iterrows():
         if row['dG'] == 'nan':
             continue
-        for j in range(3):
+        for j in range(1):
             try:
                 output = subprocess.check_output(prog + " -cseq " + row['sequence'], shell=True)
             except:
                 continue
-            print row['sequence'], row['dG'], row['dG_lb'], row['dG_ub'], output,
-            f.write(row['sequence'] + " " + str(row['dG']) + " " + str(row['dG_lb']) + " " + str(row['dG_ub']) + " " + output)
+            print row['sequence'], row['dG'], row['eminus'], row['eplus'], output,
+            f.write(row['sequence'] + "\t" + str(row['dG']) + "\t" + str(row['eminus']) + "\t" + str(row['eplus']) + "\t" + output)
             f.flush()
     f.close()
-
 
 def get_test_set():
     f  = open("exhustive_helices.dat")
@@ -61,71 +62,111 @@ def get_test_set():
         i += 19
     f.close()
 
-#run_new()
-#exit()
-df = pd.read_table("sequences_tiled_length10.txt")
-df_new = pd.read_table("summary.txt",sep=" ")
+def fix_old_data():
+    df = pd.read_table("sequences_tiled_length10.txt")
+    df_new = pd.read_table("summary.txt",sep=" ")
 
-avg_hit_count = []
-trial_num = []
+    avg_hit_count = []
+    trial_num = []
 
-for i, row in df.iterrows():
-    rows = df_new.loc[df_new['sequence'] == row['sequence']]
-    if len(rows) == 0:
-        avg_hit_count.append(0)
-        trial_num.append(0)
-        continue
+    for i, row in df.iterrows():
+        rows = df_new.loc[df_new['sequence'] == row['sequence']]
+        if len(rows) == 0:
+            avg_hit_count.append(0)
+            trial_num.append(0)
+            continue
 
     avg_count = 0
     for j, r in rows.iterrows():
         avg_count += r['cutoff_count']
-    avg_count /= len(rows)
-    avg_hit_count.append(avg_count)
-    trial_num.append(len(rows))
+        avg_count /= len(rows)
+        avg_hit_count.append(avg_count)
+        trial_num.append(len(rows))
 
-df['avg_hit_count'] = avg_hit_count
-df['trial_num'] = trial_num
+    df['avg_hit_count'] = avg_hit_count
+    df['trial_num'] = trial_num
 
-lowest = None
-for i, row in df.iterrows():
-    if lowest is None:
-        lowest = row
-        continue
-    if lowest['dG'] < row['dG']:
-        lowest = row
+    lowest = None
+    for i, row in df.iterrows():
+        if lowest is None:
+            lowest = row
+            continue
+        if lowest['dG'] < row['dG']:
+            lowest = row
 
-#dG_prediction = 1.9872041e-3*298*math.log(lowest[3] / v[3])
+    #dG_prediction = 1.9872041e-3*298*math.log(lowest[3] / v[3])
 
-df['dG_normalized'] = df['dG'] - lowest['dG']
-dG_predicted = []
-for i, row in df.iterrows():
-    try:
-        prediction = 1.9872041e-3*298*math.log(float(lowest['avg_hit_count'])/float(row['avg_hit_count']))
-        dG_predicted.append(prediction)
-    except:
-        dG_predicted.append('nan')
+    df['dG_normalized'] = df['dG'] - lowest['dG']
+    dG_predicted = []
+    for i, row in df.iterrows():
+        try:
+            prediction = 1.9872041e-3*298*math.log(float(lowest['avg_hit_count'])/float(row['avg_hit_count']))
+            dG_predicted.append(prediction)
+        except:
+            dG_predicted.append('nan')
 
-df['dG_predicted'] = dG_predicted
+    df['dG_predicted'] = dG_predicted
 
-df.to_csv("formated_summary.txt", sep="\t")
+    df.to_csv("formated_summary.txt", sep="\t")
+
+def get_predicteted_dG(row, lowest_count):
+    return 1.9872041e-3*298*math.log(float(lowest_count)/float(row['avg_hit_count']))
 
 
+run_new()
 exit()
 
-f = open("test_set_min_2.dat")
-lines = f.readlines()
-f.close()
+"""
 
-f = open("summary.txt", "w")
+df = pd.read_table("test_set.dat", sep=" ")
+df['avg_hit_count'] = [0 for x in range(len(df)) ]
+df['trials'] = [0 for x in range(len(df)) ]
 
-for l in lines:
-    spl = l.split()
+
+for i ,r in df.iterrows():
+    outputs = []
     for i in range(3):
         try:
-            output = subprocess.check_output(prog + " -cseq " + spl[0], shell=True)
-            print l.rstrip(), output,
-            f.write(l.rstrip() + " " + output)
-            f.flush()
+            output = subprocess.check_output(prog + " -cseq " + r['sequence'], shell=True)
+            outputs.append(output.rstrip())
         except:
             pass
-f.close()
+    outputs = [float(x) for x in outputs]
+    avg = 0
+    for o in outputs:
+        avg += o
+    avg /= len(outputs)
+    df.ix[i, 'avg_hit_count'] = avg
+    df.ix[i, 'trials'] = len(outputs)
+    print r['sequence'], r['dG'], avg, len(outputs)
+
+df.to_csv("summary.txt", sep="\t")
+"""
+
+exp_data = pd.read_table("flowWC.150607_150605.combined.results.sequence.length10.dat",
+                          names="id,sequence,dG,eminus,eplus".split(","))
+pred_data = pd.read_table("summary_2.txt", sep=" ")
+pred_data = pred_data.drop('dG', 1)
+
+df = pd.merge(exp_data, pred_data, on="sequence", how="outer")
+df = df[df.apply(lambda x:  not pd.isnull(x['avg_hit_count']), axis=1)]
+
+lowest = df.ix[df['dG'].idxmax()]
+df['dG_normalized'] = df['dG'] - lowest['dG']
+df['dG_predicted']  = df.apply (lambda row: get_predicteted_dG(row,lowest['avg_hit_count'] ),axis=1)
+
+df.to_csv("summary.txt", sep="\t")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
