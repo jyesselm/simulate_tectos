@@ -125,7 +125,7 @@ class TectoSimulation(rnamake.base.Base):
 
 
         if cmd_args.pdbs:
-            mt.write_pdbs()
+            mt.write_pdbs("good")
             mst = mset.to_mst()
             n1 = mst.get_node(ni)
             n2 = mst.get_node(mt.last_node().index-1)
