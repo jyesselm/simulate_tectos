@@ -54,7 +54,7 @@ def process_results(f_name, norm_seq=""):
     return df
 
 
-def plot_results(df):
+def plot_results(df ):
     print "r^2",r2(df['predicted_ddG'], df['actual_ddG'])
     print "abs error", abs_error(df['predicted_ddG'], df['actual_ddG'])
     sns.lmplot(x="actual_ddG", y="predicted_ddG", data=df)
