@@ -21,7 +21,13 @@ def build_mse_by_topology(m_name, sequence_identity=1):
         #extra_mse/TWOWAY.1DUQ.7-G409-H420.me
 
     :param m_name: The name of the motif that you need an ensemble for
+    :type  m_name: string
     :return: None, generates files ensemble files in /extra_mse/
+
+    :param sequence_identity: selects only motifs that have the same junction sequence
+        other then the flanking basepairs. default : 1, turned on
+    :type  sequence_identity: int
+
     """
 
     mlib = sqlite_library.MotifSqliteLibrary("twoway")
@@ -64,6 +70,22 @@ def build_mse_by_topology(m_name, sequence_identity=1):
 
 
 def build_bp_step_mse_for_topology(m_name):
+    """
+    Creates an ensemble using a basepair distribution of the first and last
+    basepair of a motif. Not recommended to do for anything large then a 1-0 bulge
+
+    .. code-block:: python
+        >>> build_bp_step_mse_for_topology('TWOWAY.1DUQ.7')
+        None
+        #these files will be generated
+        #extra_mse/TWOWAY.1DUQ.7-G408-H422.me
+        #extra_mse/TWOWAY.1DUQ.7-G409-H420.me
+
+    :param m_name: The name of the motif that you need an ensemble for
+    :type  m_name: string
+    :return: None, generates files ensemble files in /extra_mse/
+    """
+
     mlib = sqlite_library.MotifSqliteLibrary("twoway")
 
     seeds = mlib.get_multi(name=m_name)
@@ -77,7 +99,13 @@ def build_bp_step_mse_for_topology(m_name):
         f.write(str)
         f.close()
 
+
 def get_extra_mse_file():
+    """
+    generates the extra_mse file required for custom ensembles in simulate_tectos
+    program 
+
+    """
     pos = os.path.abspath(__file__)
     basedir = util.base_dir(pos)
     f = open("extra_mse.dat", "w")
