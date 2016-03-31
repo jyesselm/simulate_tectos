@@ -63,7 +63,7 @@ def build_mse_by_topology(m_name, sequence_identity=1):
         str = me.to_str()
         for m in motifs:
             m.to_pdb(m.name + ".pdb")
-        exit()
+        #return
         f = open("extra_mse/" + s.name + "-" + s.ends[0].name() + ".me", "w")
         f.write(str)
         f.close()
@@ -99,6 +99,23 @@ def build_bp_step_mse_for_topology(m_name):
         f.write(str)
         f.close()
 
+def build_mse_from_motif_for_topology(m_name, actual_name):
+    mlib = sqlite_library.MotifSqliteLibrary("twoway")
+    act_m = mlib.get(name=actual_name)
+    m = mlib.get(name=m_name)
+    for i, end in enumerate(m.ends):
+        mi = mlib.get(name=m_name, end_name=end.name())
+        mi.to_pdb("m."+str(i)+".pdb")
+        me = motif_ensemble.MotifEnsemble()
+        all_ms = [mi]
+        all_scores = [1]
+        mi.name = actual_name + "-" + str(i)
+        me.setup(mi.end_ids[0], all_ms, all_scores)
+        print mi.end_ids[0], act_m.end_ids[i], act_m.ends[i].name()
+        f = open("extra_mse/" + actual_name + "-" + act_m.ends[i].name() + ".me", "w")
+        f.write(me.to_str())
+        f.close()
+
 
 def get_extra_mse_file():
     """
@@ -114,7 +131,10 @@ def get_extra_mse_file():
     f.close()
 
 
-build_mse_by_topology("TWOWAY.1DUQ.7", sequence_identity=0)
+#build_mse_from_motif_for_topology("TWOWAY.1S72.68", "TWOWAY.1DUQ.7")
+#build_mse_from_motif_for_topology("TWOWAY.1DUQ.7", "TWOWAY.1DUQ.7")
+build_mse_by_topology("TWOWAY.1DUQ.7", sequence_identity=1)
+#m = rm.manager.get_motif(name="GC=CG").to_pdb("step.pdb")
 #build_bp_step_mse_for_topology("TWOWAY.1DUQ.7")
-#get_extra_mse_file()
+get_extra_mse_file()
 

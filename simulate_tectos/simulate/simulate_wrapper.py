@@ -68,7 +68,7 @@ class SimulateTectosWrapper(base.Base):
             raise ValueError("you might want to set RNAMAKE in your .bashrc")
 
         self.path = os.environ.get('RNAMAKE') + \
-                    "/rnamake/lib/RNAMake/cmake/build/simulate_tectos"
+                    "/rnamake/lib/RNAMake/cmake/build/simulate_tectos_devel"
 
         if not os.path.isfile(self.path):
             raise  ValueError("simulate_tectos program does not exist please compile c++ code")
@@ -79,9 +79,10 @@ class SimulateTectosWrapper(base.Base):
                     'fseq'      : "",
                     'fss'       : "",
                     'extra_mse' : "",
-                    'n'         : 1}
+                    'n'         : 1,
+                    's'         : '1000000'}
 
-        self.exec_options = { o : 1 for o in "cseq css fseq fss extra_mse".split()}
+        self.exec_options = { o : 1 for o in "s cseq css fseq fss extra_mse".split()}
         self.default_options = {}
         self.options = option.Options(options)
         for k in self.exec_options.keys():
@@ -89,10 +90,11 @@ class SimulateTectosWrapper(base.Base):
 
     def run(self, **options):
         self.options.dict_set(options)
-
+        cmd = self._get_command()
         avg = 0
         count = 0
         for i in range(self.option('n')):
+
             try:
                 cmd = self._get_command()
                 out = subprocess.check_output(cmd, shell=True)
@@ -137,7 +139,7 @@ class SimulateTectosWrapperRun(base.Base):
         if 'sequence' not in df:
             raise ValueError("df must include sequence as a column")
 
-        avg_hit_counts = []
+        avg_hit_counts = [-1 for i in range(len(df))]
         for i,r in df.iterrows():
             stw = SimulateTectosWrapper()
             seq = r['sequence']
@@ -145,9 +147,18 @@ class SimulateTectosWrapperRun(base.Base):
                 ss = v.fold(seq).structure
             else:
                 ss = r['secondary_structure']
-            avg_hit_count = stw.run(n=self.option('n'), extra_mse=self.option('extra_mse'),
-                                    cseq=seq, css=ss)
-            avg_hit_counts.append(avg_hit_count)
+            try:
+                avg_hit_count = stw.run(n=self.option('n'), extra_mse=self.option('extra_mse'),
+                                        cseq=seq, css=ss, s='1000000')
+            except:
+                avg_hit_count = -1
+            avg_hit_counts[i] = avg_hit_count
+            df['avg_hit_count'] = avg_hit_counts
+
+            #print i, avg_hit_count
+            #if i % 10 == 0:
+            #    df.to_csv(self.option('out_file'))
+
 
         df['avg_hit_count'] = avg_hit_counts
         df.to_csv(self.option('out_file'))

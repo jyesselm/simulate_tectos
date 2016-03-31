@@ -112,32 +112,33 @@ class TectoSimulation(rnamake.base.Base):
         last_end = ss.motif('GGAA_tetraloop').get_end_by_id(last_end_id)
         conn = ss.motif_topology_from_end(ss.ends[1], last_end=last_end)
         mtt = motif_tree_topology.MotifTreeTopology(conn)
-        mt = motif_tree.motif_tree_from_topology(mtt, sterics=0)
-        mset = motif_state_ensemble_tree.MotifStateEnsembleTree(mt=mt)
+        self.mt = motif_tree.motif_tree_from_topology(mtt, sterics=0)
+        self.mset = motif_state_ensemble_tree.MotifStateEnsembleTree(mt=self.mt)
 
-        ni = -1
-        ei = -1
-        for n in mt:
+        self.ni = -1
+        self.ei = -1
+        for n in self.mt:
             if n.data.name == 'GGAA_tetraloop':
-                ni = n.index
+                self.ni = n.index
                 bp = n.data.get_basepair(name="A1-A6")[0]
-                ei = n.data.ends.index(bp)
+                self.ei = n.data.ends.index(bp)
 
 
         if cmd_args.pdbs:
-            mt.write_pdbs("good")
-            mst = mset.to_mst()
-            n1 = mst.get_node(ni)
-            n2 = mst.get_node(mt.last_node().index-1)
-            end_state_1 = n1.data.cur_state.end_states[ei]
+            self.mt.write_pdbs("good")
+            mst = self.mset.to_mst()
+            n1 = mst.get_node(self.ni)
+            n2 = mst.get_node(self.mt.last_node().index-1)
+            end_state_1 = n1.data.cur_state.end_states[self.ei]
             end_state_2 = n2.data.cur_state.end_states[1]
             scorer = thermo_fluc_sampler.FrameScorer()
             score = scorer.score(end_state_1, end_state_2)
             print "distance + rotation diff = ",score
             exit()
 
+    def run(self):
         self.simulator = thermo_fluc_sampler.ThermoFlucSimulation()
-        self.simulator.setup(mset, ni, mt.last_node().index-1, ei, 1)
+        self.simulator.setup(self.mset, self.ni, self.mt.last_node().index-1, self.ei, 1)
         self.simulator.run()
 
 
