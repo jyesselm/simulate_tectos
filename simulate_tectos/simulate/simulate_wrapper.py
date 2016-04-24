@@ -143,21 +143,28 @@ class SimulateTectosWrapperRun(base.Base):
         for i,r in df.iterrows():
             stw = SimulateTectosWrapper()
             seq = r['sequence']
+
+
             if 'secondary_structure' not in df:
                 ss = v.fold(seq).structure
             else:
                 ss = r['secondary_structure']
+
             try:
-                avg_hit_count = stw.run(n=self.option('n'), extra_mse=self.option('extra_mse'),
-                                        cseq=seq, css=ss, s='1000000')
+                #avg_hit_count = stw.run(n=self.option('n'), extra_mse=self.option('extra_mse'),
+                #                        cseq=seq, css=ss, s='1000000')
+                avg_hit_count = stw.run(n=self.option('n'),
+                                        cseq=seq, css=ss, s='1000000',
+                                        fseq="CTAGGAATCTGGAAGTACACGAGGAAACTCGTGTACTTCCTGTGTCCTAG",
+                                        fss="((((((....(((((((((((((....)))))))))))))....))))))")
             except:
                 avg_hit_count = -1
             avg_hit_counts[i] = avg_hit_count
             df['avg_hit_count'] = avg_hit_counts
 
-            #print i, avg_hit_count
-            #if i % 10 == 0:
-            #    df.to_csv(self.option('out_file'))
+            print i, avg_hit_count
+            if i % 10 == 0:
+                df.to_csv(self.option('out_file'))
 
 
         df['avg_hit_count'] = avg_hit_counts
