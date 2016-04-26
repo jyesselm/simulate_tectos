@@ -1,64 +1,6 @@
-import argparse
 import subprocess
-import pandas as pd
-import math
-import numpy as np
-import seaborn as sns
 import os
-from scipy import stats
 from rnamake import base, option, vienna
-
-sns.set_style("white")
-sns.set_context("talk")
-
-def r2(x, y):
-    return stats.pearsonr(x, y)[0] ** 2
-
-
-def abs_error(x, y):
-    diff = np.abs(np.array(x) - np.array(y))
-    return np.average(diff)
-
-
-def parse_args():
-    pass
-
-
-def process_results(f_name, norm_seq=""):
-    df = pd.read_csv(f_name)
-    value_list = [norm_seq]
-
-    if norm_seq == "":
-        max = df['dG'].max()
-        df1 = df[df.dG.isin([max])]
-        lowest = df1.iloc[0]
-
-    else:
-        df1 = df[df.sequence.isin(value_list)]
-        lowest = df1.iloc[0]
-
-    predicted_ddGs = []
-    actual_ddGs = []
-    frac = float(lowest['avg_hit_count']) / float((1000000 - lowest['avg_hit_count']))
-    lowest_log = math.log(frac)
-    for i, r in df.iterrows():
-        p = 1.9872041e-3*298*(lowest_log - math.log(float(r['avg_hit_count'])/float(1000000 - r['avg_hit_count'])))
-        #p1 = 1.9872041e-3*298*math.log(float(lowest['avg_hit_count'])/float(r['avg_hit_count']))
-        act = r['dG'] - lowest['dG']
-        predicted_ddGs.append(p)
-        actual_ddGs.append(act)
-
-    df['predicted_ddG'] = predicted_ddGs
-    df['actual_ddG']    = actual_ddGs
-
-    return df
-
-
-def plot_results(df ):
-    print "r^2",r2(df['predicted_ddG'], df['actual_ddG'])
-    print "abs error", abs_error(df['predicted_ddG'], df['actual_ddG'])
-    sns.lmplot(x="actual_ddG", y="predicted_ddG", data=df)
-
 
 class SimulateTectosWrapper(base.Base):
     def __init__(self):
@@ -94,7 +36,6 @@ class SimulateTectosWrapper(base.Base):
         avg = 0
         count = 0
         for i in range(self.option('n')):
-
             try:
                 cmd = self._get_command()
                 out = subprocess.check_output(cmd, shell=True)
@@ -127,23 +68,35 @@ class SimulateTectosWrapperRun(base.Base):
     def setup_options_and_constraints(self):
         options = { 'devel'    : 0,
                     'n'        : 1,
+                    'fseq'     : "",
+                    'fss'      : "",
                     'extra_mse': "",
+                    's'        : '1000000',
                     'out_file' : 'results.csv'}
 
         self.options = option.Options(options)
+        self.simulate_options = {x : 1 for x in "devel,n,extra_mse,fss,fseq,s".split(",")}
 
     def run(self, df, **options):
         self.options.dict_set(options)
-        v = vienna.Vienna()
 
         if 'sequence' not in df:
             raise ValueError("df must include sequence as a column")
 
+        stw = SimulateTectosWrapper()
+        for k, v in options.iteritems():
+            if k in self.simulate_options:
+                stw.option(k, v)
+
+        v = vienna.Vienna()
+
         avg_hit_counts = [-1 for i in range(len(df))]
         for i,r in df.iterrows():
-            stw = SimulateTectosWrapper()
             seq = r['sequence']
 
+            extra_mse = self.option('extra_mse')
+            if 'extra_mse' in df:
+                extra_mse = r['extra_mse']
 
             if 'secondary_structure' not in df:
                 ss = v.fold(seq).structure
@@ -151,18 +104,12 @@ class SimulateTectosWrapperRun(base.Base):
                 ss = r['secondary_structure']
 
             try:
-                #avg_hit_count = stw.run(n=self.option('n'), extra_mse=self.option('extra_mse'),
-                #                        cseq=seq, css=ss, s='1000000')
-                avg_hit_count = stw.run(n=self.option('n'),
-                                        cseq=seq, css=ss, s='1000000',
-                                        fseq="CTAGGAATCTGGAAGTACACGAGGAAACTCGTGTACTTCCTGTGTCCTAG",
-                                        fss="((((((....(((((((((((((....)))))))))))))....))))))")
+                avg_hit_count = stw.run(cseq=seq, css=ss, extra_mse=extra_mse)
             except:
                 avg_hit_count = -1
             avg_hit_counts[i] = avg_hit_count
             df['avg_hit_count'] = avg_hit_counts
 
-            print i, avg_hit_count
             if i % 10 == 0:
                 df.to_csv(self.option('out_file'))
 

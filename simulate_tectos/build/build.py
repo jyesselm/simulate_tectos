@@ -2,6 +2,7 @@ from rnamake import sqlite_library, motif_ensemble, util, motif_factory
 from rnamake import secondary_structure_factory as ssf
 from rnamake import resource_manager as rm
 import os
+import pandas as pd
 
 
 def build_mse_by_topology(m_name, sequence_identity=1):
@@ -99,8 +100,9 @@ def build_bp_step_mse_for_topology(m_name):
         f.write(str)
         f.close()
 
-def build_mse_from_motif_for_topology(m_name, actual_name):
-    mlib = sqlite_library.MotifSqliteLibrary("twoway")
+def build_mse_from_motif_for_topology(m_name, actual_name, mlib=None):
+    if mlib is None:
+        mlib = sqlite_library.MotifSqliteLibrary("twoway")
     act_m = mlib.get(name=actual_name)
     m = mlib.get(name=m_name)
     for i, end in enumerate(m.ends):
@@ -115,6 +117,32 @@ def build_mse_from_motif_for_topology(m_name, actual_name):
         f = open("extra_mse/" + actual_name + "-" + act_m.ends[i].name() + ".me", "w")
         f.write(me.to_str())
         f.close()
+
+def build_mse_from_motif_for_topology_2(org_m, new_m, mlib):
+
+    new_m_key = new_m.name + "-" + new_m.ends[0].name()
+
+    fsum = open("extra_mse/" + org_m.name + "/" + new_m_key + "/extra_mse.dat", "w")
+
+    pos = os.path.abspath(__file__)
+    basedir = util.base_dir(pos)
+
+    for i, end in enumerate(org_m.ends):
+        mi = mlib.get(name=new_m.name, end_name=new_m.ends[i].name())
+        all_ms = [mi]
+        all_scores = [1]
+        me = motif_ensemble.MotifEnsemble()
+        me.setup(org_m.end_ids[i], all_ms, all_scores)
+
+        org_m_key = org_m.name + "-" + end.name()
+
+        path = "extra_mse/" + org_m.name + "/" + new_m_key + "/" + org_m_key + ".me"
+        f = open(path, "w")
+        f.write(me.to_str())
+        f.close()
+
+        fsum.write(org_m_key + " " + basedir+path + "\n")
+    fsum.close()
 
 
 def get_extra_mse_file():
@@ -131,10 +159,34 @@ def get_extra_mse_file():
     f.close()
 
 
+mlib = sqlite_library.MotifSqliteLibrary("twoway")
+mlib.load_all()
+
+df = pd.read_csv("../simulate/data_all.csv")
+names = df.m_name.unique()
+
+
+for m1 in mlib.all():
+    if m1.name not in names:
+        continue
+
+    try:
+        os.mkdir("extra_mse/" + m1.name )
+    except:
+        continue
+
+    for i, m2 in enumerate(mlib.all()):
+
+        os.mkdir("extra_mse/" + m1.name + "/" + m2.name + "-" + m2.ends[0].name())
+
+        build_mse_from_motif_for_topology_2(m1, m2, mlib)
+        if i > 4:
+            break
+
 #build_mse_from_motif_for_topology("TWOWAY.1S72.68", "TWOWAY.1DUQ.7")
 #build_mse_from_motif_for_topology("TWOWAY.1DUQ.7", "TWOWAY.1DUQ.7")
-build_mse_by_topology("TWOWAY.1DUQ.7", sequence_identity=1)
+#build_mse_by_topology("TWOWAY.1DUQ.7", sequence_identity=1)
 #m = rm.manager.get_motif(name="GC=CG").to_pdb("step.pdb")
 #build_bp_step_mse_for_topology("TWOWAY.1DUQ.7")
-get_extra_mse_file()
+#get_extra_mse_file()
 
